@@ -1,5 +1,5 @@
 {
-  "name": "node-midServer",
+  "name": "node01",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -15,6 +15,7 @@
     "formidable": "^1.2.1",
     "http-errors": "~1.6.2",
     "jade": "^1.11.0",
-    "morgan": "~1.9.0"
+    "morgan": "~1.9.0",
+    "sharp": "^0.20.8"
   }
 }

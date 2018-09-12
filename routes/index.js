@@ -6,8 +6,20 @@ var fs = require('fs')
 var config = require('../config');
 var formidable = require('formidable')
 var path = require('path')
-var txAI = require('../utils/tencentAI/txAI.js');
 var dataHandle = require('../utils/dataHandle.js');
+var errcodeHandle = require('../utils/errcodeHandle');
+var tencentyoutuyun = require('../lib/nodejs_sdk');
+var tencentconf = tencentyoutuyun.conf;
+var youtu = tencentyoutuyun.youtu;
+
+var sharp = require('sharp')
+
+// 初始化腾讯优图sdk对象
+var appid = '1000000000000';
+var secretId = 'xxxxxxxxxxxxx';
+var secretKey = 'xxxxxxxxxxxx';
+var userid = '12341234'; // QQ
+tencentconf.setAppInfo(appid, secretId, secretKey, userid, 0)
 
 // 获取token 以及 登录
 router.post('/oauth/token', function (request, response) {
@@ -213,7 +225,7 @@ router.post('/api/attachment', (request, response) => {
   form.keepExtensions = true;//保留后缀
   form.maxFieldsSize = 2 * 1024 * 1024;// 默认2M
   form.on("field", (field, value) => {
-    fields.push([field, value])
+    fields.push([field, value]);
   }).on("file", (field, file) => {
     // 处理图片
     var filename = file.name;
@@ -228,17 +240,16 @@ router.post('/api/attachment', (request, response) => {
     var avatarName = name + time + '.' + type;
     newPath = form.uploadDir + "/" + avatarName;
     fs.renameSync(file.path, newPath);  //重命名
-    file.name = avatarName
-    file.path = newPath // 修改文件路径即可更改上传的文件
-    // var fileStream = fs.createWriteStream(newPath); // 不可这样修改文件流，否则浏览器显示不了图片
-    // file._writeStream = fileStream
-    files.push([field, file])
+    file.name = avatarName;
+    file.path = newPath; // 修改文件路径即可更改上传的文件
+    files.push([field, file]);
   }).on("end", () => {
-    switch (fields[0][1]) {
-      case 'idcard_front':
-        txAI.idcardocr(newPath, 0, (res) => {
-          if (res.httpcode === 200 && res.data.ret === 0 && res.data.data.frontimage) {
-            dataHandle.base64_decode(res.data.data.frontimage, newPath)
+    // 身份证正面照片
+    if (fields[0][1] === 'idcard_front') {
+      youtu.idcardocr(newPath, 0, function (data) {
+        if (data.code === 200) {
+          if (data.data.errorcode === 0) {
+            dataHandle.base64_decode(data.data.frontimage, newPath);
             // 发送最新图片请求
             var req = http.request(opt, (res) => {
               res.setEncoding('utf8')
@@ -246,20 +257,28 @@ router.post('/api/attachment', (request, response) => {
                   _data += chunk;
                 })
                 .on('end', function () {
-                  response.send(_data)
+                  response.send(_data);
                 })
             }).on('error', (e) => {
               // console.log("Got error: " + e.message)
-              response.end("内部错误，请联系管理员！msg:" + e)
+              response.end("内部错误，请联系管理员！msg:" + e);
             })
-            uploadFile(files, req, fields)
+            uploadFile(files, req, fields);
+          } else {
+            var errmsg = errcodeHandle.transErrcode(data.data.errorcode)
+            response.send({ code: 'node:imageRecognizeFail', message: errmsg })
           }
-        });
-        break;
-      case 'idcard_back':
-        txAI.idcardocr(newPath, 1, (res) => {
-          if (res.httpcode === 200 && res.data.ret === 0 && res.data.data.backimage) {
-            dataHandle.base64_decode(res.data.data.backimage, newPath)
+        } else {
+          response.send({ code: 'node:imageRecognizeFail ' + data.code, message: '内部错误，请联系管理员!' })
+        }
+      })
+    }
+    // 身份证反面照片
+    if (fields[0][1] === 'idcard_back') {
+      youtu.idcardocr(newPath, 1, function (data) {
+        if (data.code === 200) {
+          if (data.data.errorcode === 0) {
+            dataHandle.base64_decode(data.data.backimage, newPath);
             // 发送最新图片请求
             var req = http.request(opt, (res) => {
               res.setEncoding('utf8')
@@ -267,37 +286,104 @@ router.post('/api/attachment', (request, response) => {
                   _data += chunk;
                 })
                 .on('end', function () {
-                  response.send(_data)
+                  response.send(_data);
                 })
             }).on('error', (e) => {
               // console.log("Got error: " + e.message)
-              response.end("内部错误，请联系管理员！msg:" + e)
+              response.end("内部错误，请联系管理员！msg:" + e);
             })
-            uploadFile(files, req, fields)
+            uploadFile(files, req, fields);
+          } else {
+            var errmsg = errcodeHandle.transErrcode(data.data.errorcode)
+            response.send({ code: 'node:imageRecognizeFail', message: errmsg })
           }
-        });
-        break;
-      case 'photo':
-        txAI.detectface(newPath, 1, (res) => {
-          if (res.httpcode === 200 && res.data.ret === 0) {
-            // dataHandle.base64_decode(res.data.data.backimage, newPath)
+        } else {
+          response.send({ code: 'node:imageRecognizeFail ' + data.code, message: '内部错误，请联系管理员!' })
+        }
+      })
+    }
+    // 本人声明
+    if (fields[0][1] === 'declare') {
+      // 发送最新图片请求
+      var req = http.request(opt, (res) => {
+        res.setEncoding('utf8')
+          .on('data', (chunk) => {
+            _data += chunk;
+          })
+          .on('end', function () {
+            response.send(_data);
+          })
+      }).on('error', (e) => {
+        // console.log("Got error: " + e.message)
+        response.end("内部错误，请联系管理员！msg:" + e);
+      })
+      uploadFile(files, req, fields);
+    }
+    // 一寸彩照
+    if (fields[0][1] === 'photo') {
+      youtu.detectface(newPath, 1, function (data) {
+        if (data.code === 200) {
+          if (data.data.errorcode === 0) {
+            
+            // 裁剪头像（一寸照片25mm * 35mm）
+            var left = data.data.face[0].x;
+            var top = data.data.face[0].y;
+            var faceWidth = data.data.face[0].width;
+            var faceHeight = data.data.face[0].height;
+
+            var imgWidth = data.data.image_width;
+            var imgHeight = data.data.image_height;
+
+            // 判断是否一寸照片
+            if (faceWidth*faceHeight*2 <= imgWidth*imgHeight/3) {
+              console.log('头像图片不合规范，请上传扫描件')
+            }
+
+            // 获取头的坐标
+            top = top - faceHeight <= 0 ? 0 : top - faceHeight
+
+            // 获取头的高度
+            var headHeight = faceHeight*2/3 > imgHeight ? faceHeight*2/3 : imgHeight
+
+            var outPath = path.join(__dirname, '/output') + '/output.jpg'
+            fs.exists(newPath, function(exists){
+              if (exists) {
+                sharp(newPath)
+                .extract({ left: left, top: top, width: faceWidth, height: headHeight })
+                // .resize(125, 175)
+                .toFile(outPath, function (err) {
+                  if (err) {
+                    response.end('图片裁剪错误，请重新上传另一张照片')
+                  }
+                })
+              }
+            })
+
+
+
+            // dataHandle.base64_decode(data.data.backimage, newPath);
             // 发送最新图片请求
-            var req = http.request(opt, (res) => {
-              res.setEncoding('utf8')
-                .on('data', (chunk) => {
-                  _data += chunk;
-                })
-                .on('end', function () {
-                  response.send(_data)
-                })
-            }).on('error', (e) => {
-              // console.log("Got error: " + e.message)
-              response.end("内部错误，请联系管理员！msg:" + e)
-            })
-            uploadFile(files, req, fields)
+            // var req = http.request(opt, (res) => {
+            //   res.setEncoding('utf8')
+            //     .on('data', (chunk) => {
+            //       _data += chunk;
+            //     })
+            //     .on('end', function () {
+            //       response.send(_data);
+            //     })
+            // }).on('error', (e) => {
+            //   // console.log("Got error: " + e.message)
+            //   response.end("内部错误，请联系管理员！msg:" + e);
+            // })
+            // uploadFile(files, req, fields);
+          } else {
+            var errmsg = errcodeHandle.transErrcode(data.data.errorcode)
+            response.send({ code: 'node:imageRecognizeFail', message: errmsg })
           }
-        });
-        break;
+        } else {
+          response.send({ code: 'node:imageRecognizeFail ' + data.code, message: '内部错误，请联系管理员!' })
+        }
+      })
     }
   })
   form.parse(request)
