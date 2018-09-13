@@ -2,8 +2,8 @@ const crypto = require('crypto');
 const conf = require('./conf');
 const dataHandle = require('../dataHandle')
  
-const app_id = '10000000'
-const appkey = 'xxxxxxxxxxx'
+const app_id = '10000000' // #gitignore
+const appkey = 'xxxxxxxxxxx' // #gitignore
 conf.setAppInfo(app_id, appkey)
 
 /**
