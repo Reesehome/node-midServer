@@ -6,7 +6,8 @@ var fs = require('fs')
 var config = require('../config');
 var formidable = require('formidable')
 var path = require('path')
-var dataHandle = require('../utils/dataHandle.js');
+var dataHandle = require('../utils/dataHandle');
+var imageHandle = require('../utils/imageHandle')
 var errcodeHandle = require('../utils/errcodeHandle');
 var tencentyoutuyun = require('../lib/nodejs_sdk');
 var tencentconf = tencentyoutuyun.conf;
@@ -263,7 +264,7 @@ router.post('/api/attachment', (request, response) => {
               // console.log("Got error: " + e.message)
               response.end("内部错误，请联系管理员！msg:" + e);
             })
-            uploadFile(files, req, fields);
+            imageHandle.uploadFile(files, req, fields);
           } else {
             var errmsg = errcodeHandle.transErrcode(data.data.errorcode)
             response.send({ code: 'node:imageRecognizeFail', message: errmsg })
@@ -292,7 +293,7 @@ router.post('/api/attachment', (request, response) => {
               // console.log("Got error: " + e.message)
               response.end("内部错误，请联系管理员！msg:" + e);
             })
-            uploadFile(files, req, fields);
+            imageHandle.uploadFile(files, req, fields);
           } else {
             var errmsg = errcodeHandle.transErrcode(data.data.errorcode)
             response.send({ code: 'node:imageRecognizeFail', message: errmsg })
@@ -317,14 +318,14 @@ router.post('/api/attachment', (request, response) => {
         // console.log("Got error: " + e.message)
         response.end("内部错误，请联系管理员！msg:" + e);
       })
-      uploadFile(files, req, fields);
+      imageHandle.uploadFile(files, req, fields);
     }
     // 一寸彩照
     if (fields[0][1] === 'photo') {
       youtu.detectface(newPath, 1, function (data) {
         if (data.code === 200) {
           if (data.data.errorcode === 0) {
-            
+
             // 裁剪头像（一寸照片25mm * 35mm）
             var left = data.data.face[0].x;
             var top = data.data.face[0].y;
@@ -335,32 +336,39 @@ router.post('/api/attachment', (request, response) => {
             var imgHeight = data.data.image_height;
 
             // 判断是否一寸照片
-            if (faceWidth*faceHeight*2 <= imgWidth*imgHeight/3) {
+            if (faceWidth * faceHeight * 2 <= imgWidth * imgHeight / 3) {
               console.log('头像图片不合规范，请上传扫描件')
             }
 
-            // 获取头的坐标
-            top = top - faceHeight <= 0 ? 0 : top - faceHeight
-
             // 获取头的高度
-            var headHeight = faceHeight*2/3 > imgHeight ? faceHeight*2/3 : imgHeight
+            var headHeight = faceHeight * 2 > imgHeight ? imgHeight : parseInt(faceHeight * 2)
+            var DHeight = imgHeight - headHeight
+            
+            // 获取头的宽度
+            var headWidth = faceWidth * 3/2 > imgWidth ? imgWidth : parseInt(faceWidth * 3/2)
+            var DWidth = imgWidth - headWidth
 
-            var outPath = path.join(__dirname, '/output') + '/output.jpg'
-            fs.exists(newPath, function(exists){
-              if (exists) {
-                sharp(newPath)
-                .extract({ left: left, top: top, width: faceWidth, height: headHeight })
-                // .resize(125, 175)
+            // 获取头的坐标
+            top = top - faceHeight * 1/2 <= 0 ? 0 : parseInt(top - faceHeight * 1/2)
+            left = left - faceWidth * 1/4 <= 0 ? 0 : parseInt(left - faceWidth * 1/4)
+
+            if (DHeight - top < 0) {
+              top = DHeight/2
+            }
+            if (DWidth - left < 0) {
+              left = DWidth/2
+            }
+            var outPath = path.join(__dirname, '/output') + '/output2_1.jpg'
+            var imgExists = fs.existsSync(newPath)
+            if (imgExists) {
+              sharp(newPath)
+                .extract({ left: left, top: top, width: headWidth, height: headHeight })
                 .toFile(outPath, function (err) {
                   if (err) {
                     response.end('图片裁剪错误，请重新上传另一张照片')
                   }
                 })
-              }
-            })
-
-
-
+            }
             // dataHandle.base64_decode(data.data.backimage, newPath);
             // 发送最新图片请求
             // var req = http.request(opt, (res) => {
@@ -375,7 +383,7 @@ router.post('/api/attachment', (request, response) => {
             //   // console.log("Got error: " + e.message)
             //   response.end("内部错误，请联系管理员！msg:" + e);
             // })
-            // uploadFile(files, req, fields);
+            // imageHandle.uploadFile(files, req, fields);
           } else {
             var errmsg = errcodeHandle.transErrcode(data.data.errorcode)
             response.send({ code: 'node:imageRecognizeFail', message: errmsg })
@@ -388,55 +396,5 @@ router.post('/api/attachment', (request, response) => {
   })
   form.parse(request)
 })
-function uploadFile(files, req, postData) {
-  var boundaryKey = Math.random().toString(16);
-  var endData = '\r\n----' + boundaryKey + '--';
-  var filesLength = 0, content;
-  // 初始数据，把post过来的数据都携带上去
-  content = (function (obj) {
-    var rslt = [];
-    Object.keys(obj).forEach(function (key) {
-      arr = ['\r\n----' + boundaryKey + '\r\n'];
-      arr.push('Content-Disposition: form-data; name="' + obj[key][0] + '"\r\n\r\n');
-      arr.push(obj[key][1]);
-      rslt.push(arr.join(''));
-    });
-    return rslt.join('');
-  })(postData);
-  // 组装数据
-  Object.keys(files).forEach(function (key) {
-    if (!files.hasOwnProperty(key)) {
-      delete files.key;
-      return;
-    }
-    content += '\r\n----' + boundaryKey + '\r\n' +
-      'Content-Type: application/octet-stream\r\n' +
-      'Content-Disposition: form-data; name="' + files[key][0] + '"; ' +
-      'filename="' + files[key][1].name + '"; \r\n' +
-      'Content-Transfer-Encoding: binary\r\n\r\n';
-    files[key].contentBinary = new Buffer(content, 'utf-8');;
-    filesLength += files[key].contentBinary.length + fs.statSync(files[key][1].path).size;
-  });
-  req.setHeader('Content-Type', 'multipart/form-data; boundary=--' + boundaryKey);
-  req.setHeader('Content-Length', filesLength + Buffer.byteLength(endData));
-  // 执行上传
-  var allFiles = Object.keys(files);
-  var fileNum = allFiles.length;
-  var uploadedCount = 0;
-  allFiles.forEach(function (key) {
-    req.write(files[key].contentBinary);
-    // console.log("files[key].path:" + files[key][1].path);
-    var fileStream = fs.createReadStream(files[key][1].path, { bufferSize: 4 * 1024 });
-    fileStream.on('end', function () {
-      // 上传成功一个文件之后，把临时文件删了
-      // fs.unlink(files[key][1].path);
-      // uploadedCount++;
-      // if (uploadedCount == fileNum) {
-      // 如果已经是最后一个文件，那就正常结束
-      req.end(endData);
-      // }
-    });
-    fileStream.pipe(req, { end: false });
-  });
-}
+
 module.exports = router; 
