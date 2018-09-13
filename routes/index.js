@@ -16,10 +16,10 @@ var youtu = tencentyoutuyun.youtu;
 var sharp = require('sharp')
 
 // 初始化腾讯优图sdk对象
-var appid = '1000000000000';
-var secretId = 'xxxxxxxxxxxxx';
-var secretKey = 'xxxxxxxxxxxx';
-var userid = '12341234'; // QQ
+var appid = '1000000000000'; //#gitignore
+var secretId = 'xxxxxxxxxxxxx'; //#gitignore
+var secretKey = 'xxxxxxxxxxxx'; //#gitignore
+var userid = '12341234'; // QQ //#gitignore
 tencentconf.setAppInfo(appid, secretId, secretKey, userid, 0)
 
 // 获取token 以及 登录
