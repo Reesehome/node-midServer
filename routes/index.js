@@ -7,7 +7,8 @@ var config = require('../config');
 var formidable = require('formidable')
 var path = require('path')
 var dataHandle = require('../utils/dataHandle');
-var imageHandle = require('../utils/imageHandle')
+var getRequest = require('../utils/getRequest')
+var imageHandle = require('../utils/imageHandle');
 var errcodeHandle = require('../utils/errcodeHandle');
 var tencentyoutuyun = require('../lib/nodejs_sdk');
 var tencentconf = tencentyoutuyun.conf;
@@ -24,7 +25,6 @@ tencentconf.setAppInfo(appid, secretId, secretKey, userid, 0)
 
 // 获取token 以及 登录
 router.post('/oauth/token', function (request, response) {
-  var _data = '';
   var opt = {
     method: request.method,
     host: config.API.HOST,
@@ -35,24 +35,15 @@ router.post('/oauth/token', function (request, response) {
       "Content-Type": request.headers['content-type']
     }
   };
-  var req = http.request(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', (e) => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
   // 写入数据到请求主体
   req.end(qs.stringify(request.body));
 });
 
 // 获取登录验证码
 router.patch('/api/candidate/resetPwd', function (request, response) {
-  var _data = '';
   var opt = {
     host: config.API.HOST,
     port: config.API.POST,
@@ -63,17 +54,9 @@ router.patch('/api/candidate/resetPwd', function (request, response) {
       "Content-Type": request.headers['content-type']
     }
   }
-  var req = http.request(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', e => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
   req.write(JSON.stringify(request.body)) // {"mobile":"13246824898"}
   // req.write(qs.stringify(request.body)) // mobile=13246824898。这里的content-type：application/json.因此body需要的是json格式
   req.end();
@@ -81,7 +64,6 @@ router.patch('/api/candidate/resetPwd', function (request, response) {
 
 // 注册新用户
 router.post('/api/candidate', function (request, response) {
-  var _data = '';
   var opt = {
     method: request.method,
     host: config.API.HOST,
@@ -91,23 +73,14 @@ router.post('/api/candidate', function (request, response) {
       "Authorization": request.headers['authorization']
     }
   };
-  var req = http.request(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', (e) => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
   req.end(qs.stringify(request.body));
 });
 
 // 获取注册验证码
 router.post('/api/verifier_code', function (request, response) {
-  var _data = '';
   var opt = {
     method: request.method,
     host: config.API.HOST,
@@ -117,95 +90,66 @@ router.post('/api/verifier_code', function (request, response) {
       "Authorization": request.headers['authorization']
     }
   };
-  var req = http.request(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', (e) => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
   req.end(qs.stringify(request.body));
 });
 
 // 获取最新考试
 router.get('/api/application/opinion', function (request, response) {
-  var _data = '';
   var opt = {
     host: config.API.HOST,
     port: config.API.POST,
+    method: request.method,
     path: request.url,
     headers: {
       "Authorization": request.headers['authorization']
     }
   }
-  http.get(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', e => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
+  req.end();
 })
 
 // 获取考试列表
 router.get('/api/application', function (request, response) {
-  var _data = '';
   var opt = {
     host: config.API.HOST,
     port: config.API.POST,
     path: request.url,
+    method: request.method,
     headers: {
       "Authorization": request.headers['authorization']
     }
   }
-  http.get(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', e => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
+  req.end();
 })
 
 // 获取某一条考试 (url动态参数写法)
 router.get('/api/application/:application_id', function (request, response) {
-  var _data = '';
   var opt = {
     host: config.API.HOST,
     port: config.API.POST,
     path: request.url,
+    method: request.method,
     headers: {
       "Authorization": request.headers['authorization']
     }
   }
-  http.get(opt, (res) => {
-    res.setEncoding('utf8')
-      .on('data', (chunk) => {
-        _data += chunk.toString();
-      })
-      .on('end', function () {
-        response.send(_data)
-      })
-  }).on('error', e => {
-    // console.log("Got error: " + e.message)
-  });
+  var req = getRequest(http, opt, (res) => {
+    response.send(res);
+  })
+  req.end();
 })
 
 // 上传图片
 router.post('/api/attachment', (request, response) => {
-  var _data = '';
+  // var _data = '';
   var files = [];
   var fields = [];
   var newPath;
@@ -252,17 +196,8 @@ router.post('/api/attachment', (request, response) => {
           if (data.data.errorcode === 0) {
             dataHandle.base64_decode(data.data.frontimage, newPath);
             // 发送最新图片请求
-            var req = http.request(opt, (res) => {
-              res.setEncoding('utf8')
-                .on('data', (chunk) => {
-                  _data += chunk;
-                })
-                .on('end', function () {
-                  response.send(_data);
-                })
-            }).on('error', (e) => {
-              // console.log("Got error: " + e.message)
-              response.end("内部错误，请联系管理员！msg:" + e);
+            var req = getRequest(http, opt, (res) => {
+              response.send(res);
             })
             imageHandle.uploadFile(files, req, fields);
           } else {
@@ -281,17 +216,8 @@ router.post('/api/attachment', (request, response) => {
           if (data.data.errorcode === 0) {
             dataHandle.base64_decode(data.data.backimage, newPath);
             // 发送最新图片请求
-            var req = http.request(opt, (res) => {
-              res.setEncoding('utf8')
-                .on('data', (chunk) => {
-                  _data += chunk;
-                })
-                .on('end', function () {
-                  response.send(_data);
-                })
-            }).on('error', (e) => {
-              // console.log("Got error: " + e.message)
-              response.end("内部错误，请联系管理员！msg:" + e);
+            var req = getRequest(http, opt, (res) => {
+              response.send(res);
             })
             imageHandle.uploadFile(files, req, fields);
           } else {
@@ -306,17 +232,8 @@ router.post('/api/attachment', (request, response) => {
     // 本人声明
     if (fields[0][1] === 'declare') {
       // 发送最新图片请求
-      var req = http.request(opt, (res) => {
-        res.setEncoding('utf8')
-          .on('data', (chunk) => {
-            _data += chunk;
-          })
-          .on('end', function () {
-            response.send(_data);
-          })
-      }).on('error', (e) => {
-        // console.log("Got error: " + e.message)
-        response.end("内部错误，请联系管理员！msg:" + e);
+      var req = getRequest(http, opt, (res) => {
+        response.send(res);
       })
       imageHandle.uploadFile(files, req, fields);
     }
@@ -371,17 +288,8 @@ router.post('/api/attachment', (request, response) => {
             }
             // dataHandle.base64_decode(data.data.backimage, newPath);
             // 发送最新图片请求
-            // var req = http.request(opt, (res) => {
-            //   res.setEncoding('utf8')
-            //     .on('data', (chunk) => {
-            //       _data += chunk;
-            //     })
-            //     .on('end', function () {
-            //       response.send(_data);
-            //     })
-            // }).on('error', (e) => {
-            //   // console.log("Got error: " + e.message)
-            //   response.end("内部错误，请联系管理员！msg:" + e);
+            // var req = getRequest(http, opt, (res) => {
+            //   response.send(res);
             // })
             // imageHandle.uploadFile(files, req, fields);
           } else {
